@@ -1,0 +1,1 @@
+//muestra estado al dia/proximo/vencido

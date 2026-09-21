@@ -1,0 +1,1 @@
+//interfaces ts (Maquina, carga)"
