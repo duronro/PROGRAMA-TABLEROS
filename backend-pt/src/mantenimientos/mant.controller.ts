@@ -10,7 +10,7 @@ export class MantenimientosMaquinasController {
         return this.service.inicializar();
     }
 
-    @Get('maquina/:id')
+    @Get('maquina/:maquinaId')
     listarPorMaquina(@Param('maquinaId', ParseIntPipe) maquinaId: number){
         return this.service.listarPorMaquina(maquinaId);
     }

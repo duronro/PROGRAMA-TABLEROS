@@ -6,6 +6,8 @@ import basededatosConfig from './config/basededatos.config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { MaquinasModule } from './maquinas/maquinas.module';
 import { ComponentesModule } from './componentes/componentes.module';
+import { MantenimientosModule } from './mantenimientos/mant.module';
+import { CargasModule } from './cargas/cargas.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { ComponentesModule } from './componentes/componentes.module';
     }),
     MaquinasModule,
     ComponentesModule,
+    MantenimientosModule,
+    CargasModule,
   ],
   
 })
