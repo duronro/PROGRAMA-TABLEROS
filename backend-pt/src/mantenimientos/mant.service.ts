@@ -1,9 +1,11 @@
 import {Injectable} from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {Repository} from 'typeorm';
 import {MantenimientoMaquina} from './entidades/mant-maquina.entity';
 import {MaquinasService} from '../maquinas/maquinas.service';
 import {ComponentesService} from '../componentes/componentes.service';
+import {CargasService} from '../cargas/cargas.service';
+import {TipoPeriodicidad} from '../componentes/entidades/comp.entity';
 
 // Excepciones conocidas: nombre de máquina + nombre de componente -> valor override
 const EXCEPCIONES: {maquina: string; componente: string; valor: number}[] = [
@@ -24,6 +26,8 @@ const EXCEPCIONES: {maquina: string; componente: string; valor: number}[] = [
     }
 ];
 
+export type EstadoMantenimiento = 'al dia' | 'proximo' | 'vencido';
+
 @Injectable()
 export class MantenimientosMaquinasService {
     constructor(
@@ -31,6 +35,7 @@ export class MantenimientosMaquinasService {
         private readonly repo: Repository<MantenimientoMaquina>,
         private readonly maquinasService: MaquinasService,
         private readonly componentesService: ComponentesService,
+        private readonly cargasService: CargasService
     ){}
 
     async inicializar(): Promise<{creados: number; omitidos: number}> {
@@ -78,4 +83,96 @@ export class MantenimientosMaquinasService {
             relations: {componente: true},
         });
     }
+
+    async calcularEstado(maquinaId: number){
+        const registros = await this.repo.find({
+            where: {maquinaId},
+            relations: {componente: true},
+        });
+
+        const folioActual = await this.cargasService.obtenerFolioMasRecienteDeMaquina(maquinaId);
+
+        return registros.map((registro) => {
+            const periodicidad = registro.valorPeriodicidadOverride ?? registro.componente.valorPeriodicidad;
+
+            if(registro.componente.tipoPeriodicidad === TipoPeriodicidad.POR_CARGAS){
+                return this.calcularEstadoPorCargas(registro, periodicidad, folioActual);
+            } else {
+                return this.calcularEstadoPorFecha(registro, periodicidad);
+            }
+        });
+    }
+
+    private calcularEstadoPorCargas(
+        registro: MantenimientoMaquina,
+        periodicidad: number,
+        folioActual: number | null,
+    ) {
+         // Si nunca se ha hecho mantenimiento, o no hay cargas registradas todavía
+        if(registro.ultimaCargaMantenimiento === null || folioActual === null){
+            return {
+                componenteId: registro.componenteId,
+                componenteNombre: registro.componente.nombre,
+                estado: 'vencido' as EstadoMantenimiento,
+                cargasTranscurridas: null,
+                cargasFaltantes: null,
+                ultimaCargaMantenimiento: registro.ultimaCargaMantenimiento,
+            };
+        }
+
+        const cargasTranscurridas = folioActual - registro.ultimaCargaMantenimiento;
+        const cargasFaltantes = periodicidad - cargasTranscurridas;
+
+        let estado: EstadoMantenimiento = 'al dia';
+        if(cargasFaltantes <= 0){
+            estado = 'vencido';
+        } else if (cargasFaltantes <= 3){
+            estado = 'proximo';
+        }
+
+        return{
+            componenteId: registro.componente.id,
+            componenteNombre: registro.componente.nombre,
+            estado,
+            cargasTranscurridas,
+            cargasFaltantes,
+            ultimaCargaMantenimiento: registro.ultimaCargaMantenimiento,
+        };
+    }
+
+    private calcularEstadoPorFecha(registro: MantenimientoMaquina, periodicidadMeses: number ){
+        if (registro.ultimaFechaMantenimiento === null){
+            return {
+                componenteId: registro.componente.id,
+                componenteNombre: registro.componente.nombre,
+                estado: 'vencido' as EstadoMantenimiento,
+                proximaFecha: null,
+                diasFaltantes: null,
+            };
+        }
+
+        const proximaFecha = new Date(registro.ultimaFechaMantenimiento);
+        proximaFecha.setMonth(proximaFecha.getMonth() + periodicidadMeses);
+
+        const hoy = new Date();
+        const diasFaltantes = Math.ceil(proximaFecha.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24);
+
+        let estado: EstadoMantenimiento = 'al dia';
+        if (diasFaltantes <= 0){
+            estado = 'vencido';
+        } else if (diasFaltantes <= 7){
+            estado = 'proximo';
+        }
+
+        return{
+            componenteId: registro.componente.id,
+            componenteNombre: registro.componente.nombre,
+            estado,
+            proximaFecha,
+            diasFaltantes,
+        }
+    }
+
+
+
 }

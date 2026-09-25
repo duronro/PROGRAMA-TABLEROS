@@ -14,4 +14,9 @@ export class MantenimientosMaquinasController {
     listarPorMaquina(@Param('maquinaId', ParseIntPipe) maquinaId: number){
         return this.service.listarPorMaquina(maquinaId);
     }
+
+    @Get('estado/:maquinaId')
+    calcularEstado(@Param('maquinaId', ParseIntPipe) maquinaId: number){
+        return this.service.calcularEstado(maquinaId);
+    }
 }
