@@ -6,10 +6,11 @@ import { MantenimientoMaquina } from './entidades/mant-maquina.entity';
 import { MaquinasModule } from '../maquinas/maquinas.module';
 import { ComponentesModule } from '../componentes/componentes.module';
 import { CargasModule } from '../cargas/cargas.module';
+import { RegistroMantenimiento } from './entidades/registro-mant.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([MantenimientoMaquina]),
+        TypeOrmModule.forFeature([MantenimientoMaquina, RegistroMantenimiento]),
         MaquinasModule,
         ComponentesModule,
         CargasModule,

@@ -6,6 +6,9 @@ import {MaquinasService} from '../maquinas/maquinas.service';
 import {ComponentesService} from '../componentes/componentes.service';
 import {CargasService} from '../cargas/cargas.service';
 import {TipoPeriodicidad} from '../componentes/entidades/comp.entity';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { RegistroMantenimiento } from './entidades/registro-mant.entity';
+import { RegistrarMantenimientoDto } from './dto/crearmant.dto';
 
 // Excepciones conocidas: nombre de máquina + nombre de componente -> valor override
 const EXCEPCIONES: {maquina: string; componente: string; valor: number}[] = [
@@ -33,6 +36,9 @@ export class MantenimientosMaquinasService {
     constructor(
         @InjectRepository(MantenimientoMaquina)
         private readonly repo: Repository<MantenimientoMaquina>,
+         @InjectRepository(RegistroMantenimiento)   
+        private readonly registroRepo: Repository<RegistroMantenimiento>,
+
         private readonly maquinasService: MaquinasService,
         private readonly componentesService: ComponentesService,
         private readonly cargasService: CargasService
@@ -172,6 +178,60 @@ export class MantenimientosMaquinasService {
             diasFaltantes,
         }
     }
+    async registrar(dto: RegistrarMantenimientoDto) {
+  const mantenimiento = await this.repo.findOne({
+    where: { maquinaId: dto.maquinaId, componenteId: dto.componenteId },
+    relations: { componente: true },
+  });
+
+  if (!mantenimiento) {
+    throw new NotFoundException(
+      'No existe esa combinación máquina-componente. ¿Ya corriste /inicializar?',
+    );
+  }
+
+  const esPorCargas =
+    mantenimiento.componente.tipoPeriodicidad === TipoPeriodicidad.POR_CARGAS;
+
+  if (esPorCargas && !dto.cargaFolio) {
+    throw new BadRequestException(
+      'Este componente es por cargas: debes indicar el folio de carga (cargaFolio)',
+    );
+  }
+
+  const fecha = new Date(dto.fechaRealizado);
+
+  // Las dos escrituras van en una transacción: o se guardan ambas o ninguna
+  return this.repo.manager.transaction(async (manager) => {
+    const registro = manager.create(RegistroMantenimiento, {
+      mantenimientoMaquinaId: mantenimiento.id,
+      tipoMantenimiento: dto.tipoMantenimiento,
+      cargaFolio: dto.cargaFolio ?? null,
+      fechaRealizado: fecha,
+      responsable: dto.responsable,
+      tiempoEmpleado: dto.tiempoEmpleado ?? null,
+      numeroCarro: dto.numeroCarro ?? null,
+      notas: dto.notas,
+    });
+    await manager.save(registro);
+
+    if (esPorCargas) {
+      mantenimiento.ultimaCargaMantenimiento = dto.cargaFolio!;
+    }
+    mantenimiento.ultimaFechaMantenimiento = fecha;
+    await manager.save(mantenimiento);
+
+    return registro;
+  });
+}
+
+async historialPorMaquina(maquinaId: number) {
+  return this.registroRepo.find({
+    where: { mantenimientoMaquina: { maquinaId } },
+    relations: { mantenimientoMaquina: { componente: true } },
+    order: { fechaRealizado: 'DESC' },
+  });
+}
 
 
 

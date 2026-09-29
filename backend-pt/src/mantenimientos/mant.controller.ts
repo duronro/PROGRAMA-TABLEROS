@@ -1,5 +1,6 @@
-import{ Controller, Post, Get, Param, ParseIntPipe } from '@nestjs/common';
+import{ Controller, Post, Get, Param, ParseIntPipe, Body } from '@nestjs/common';
 import { MantenimientosMaquinasService } from './mant.service';
+import { RegistrarMantenimientoDto } from './dto/crearmant.dto';
 
 @Controller('mantenimientos-maquina')
 export class MantenimientosMaquinasController {
@@ -18,5 +19,15 @@ export class MantenimientosMaquinasController {
     @Get('estado/:maquinaId')
     calcularEstado(@Param('maquinaId', ParseIntPipe) maquinaId: number){
         return this.service.calcularEstado(maquinaId);
+    }
+
+    @Post('registrar')
+    registrar(@Body() dto: RegistrarMantenimientoDto) {
+        return this.service.registrar(dto);
+    }
+
+    @Get('historial/:maquinaId')
+    historial(@Param('maquinaId', ParseIntPipe) maquinaId: number) {
+        return this.service.historialPorMaquina(maquinaId);
     }
 }
