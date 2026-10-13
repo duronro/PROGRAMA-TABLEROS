@@ -8,6 +8,13 @@ import { Carga } from './entidades/cargas.entity';
   imports: [TypeOrmModule.forFeature([Carga])],
   controllers: [CargasController],
   providers: [CargasService],
-  exports: [CargasService], //  importante para que mantenimientos-maquina lo use después
+  exports: [CargasService], 
 })
+
 export class CargasModule {}
+
+
+
+
+
+

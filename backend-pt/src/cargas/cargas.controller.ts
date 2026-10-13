@@ -1,10 +1,13 @@
 import { Controller,Post,Get,Body,Param,Query,ParseIntPipe, } from '@nestjs/common';
 import { CargasService } from './cargas.service';
 import { CrearCargaDto } from './dto/crearcarg.dto';
+import { MantenimientosMaquinasService } from '../mantenimientos/mant.service';
 
 @Controller('cargas')
 export class CargasController {
-  constructor(private readonly cargasService: CargasService) {}
+  constructor(
+    private readonly cargasService: CargasService,
+  ) {}
 
   @Post()
   crear(@Body() dto: CrearCargaDto) {
